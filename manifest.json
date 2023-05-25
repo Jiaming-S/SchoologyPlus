@@ -166,6 +166,34 @@
         },
         {
             "matches": [
+                "https://fuhsd.schoology.com/assignment/*"
+            ],
+            "exclude_matches": [
+                "https://*.schoology.com/login*",
+                "https://*.schoology.com/register*",
+                "*://asset-cdn.schoology.com/*",
+                "*://developer.schoology.com/*",
+                "*://support.schoology.com/*",
+                "*://info.schoology.com/*",
+                "*://files-cdn.schoology.com/*",
+                "*://status.schoology.com/*",
+                "*://ui.schoology.com/*",
+                "*://www.schoology.com/*",
+                "*://api.schoology.com/*",
+                "*://developers.schoology.com/*",
+                "*://schoology.com/*",
+                "*://lti-submission-google.app.schoology.com/*"
+            ],
+            "css": [
+                "css/assignments.css"
+            ],
+            "js": [
+                "js/assignments.js"
+            ],
+            "run_at": "document_end"
+        },
+        {
+            "matches": [
                 "https://lms.lausd.net/course/*/materials*",
                 "https://*.schoology.com/course/*/materials*"
             ],

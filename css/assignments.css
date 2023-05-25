@@ -1,0 +1,30 @@
+
+
+/* *:not(svg *) {
+  outline: 1px solid #550000 !important;
+} */
+
+
+.content-top {
+  width: 55% !important;  
+}
+
+.splus-assignment-significance {  
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  margin-top: -4px;
+}
+
+.splus-assignment-significance * {
+  width: 100%;
+} 
+
+.splus-assignment-significance .splus-modal-button {
+  margin: 0;
+  border-radius: 4px;
+}
+
+.splus-assignment-significance input {
+  padding: 4px !important;
+}
