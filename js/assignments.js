@@ -6,9 +6,11 @@
   await loadDependencies("assignments", ["all"]);
 })();
 
-// searches through all assignments of all sections for the corresponding section that matches an assignment
-// @param assignment_id: id of the assignment to get the section of
-// @return section that contains assignment_id
+/**
+ * Searches through all assignments of all sections for the corresponding section that matches an assignment
+ * @param {*} assignment_id id of the assignment to get the section of
+ * @returns the section object that contains an assignment of assignment_id
+ */
 async function getCorrespondingSection (assignment_id){
   const allSections = (await fetchApiJson(`users/${getUserId()}/sections`)).section;
 
@@ -24,10 +26,12 @@ async function getCorrespondingSection (assignment_id){
   }
 } 
 
-// gets the assignment given assignment_id and optionally the section it belongs to
-// @param assignment_id: assignment_id of the assignment to get
-// @param section (optional): the section that contains the assignment
-// @return the current point value of the assignment multiplied by its relative weight factor
+/**
+ * Gets the assignment given assignment_id and optionally the section it belongs to
+ * @param {*} assignment_id assignment_id of the assignment to get
+ * @param {*} section (optional) the section that contains the assignment
+ * @returns the current assignment object
+ */
 async function getAssignment(assignment_id, section) {
   if (section) {
     return await fetchApiJson(`sections/${section.id}/assignments/${assignment_id}`);
