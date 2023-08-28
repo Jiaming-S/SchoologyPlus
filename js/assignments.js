@@ -7,30 +7,20 @@
 })();
 
 /**
- * Searches through all assignments of all sections for the corresponding section that matches an assignment
- * @param {*} assignment_id id of the assignment to get the section of
- * @returns the section object that contains an assignment of assignment_id
+ * Extracts the assignment ID from the current URL.
+ * @returns {Promise<number>} - The extracted assignment ID.
+ * @pre User is on assignment page (obviously).
  */
-async function getCorrespondingSection (assignment_id){
-  const allSections = (await fetchApiJson(`users/${getUserId()}/sections`)).section;
-
-  for (const curSection of allSections){
-    const curSectionAssignments = (await fetchApiJson(`sections/${curSection.id}/assignments/?start=0&limit=999`)).assignment;
-    if (!curSectionAssignments) continue;
-
-    for (const assignment of curSectionAssignments) {
-      if (assignment.id === assignment_id){
-        return curSection;
-      }
-    }
-  }
-} 
+function extractAssignmentID(){
+  const url = window.location.href;
+  return parseInt(url.match(/(\d+)/g)[0]);
+}
 
 /**
- * Gets the assignment given assignment_id and optionally the section it belongs to
- * @param {*} assignment_id assignment_id of the assignment to get
- * @param {*} section (optional) the section that contains the assignment
- * @returns the current assignment object
+ * Retrieves an assignment object using its ID, optionally specifying the associated section.
+ * @param {string} assignment_id - The ID of the assignment.
+ * @param {string} [section] - The relevant section if known. Otherwise retrieve it (expensive).
+ * @returns {Promise<object>} The assignment object.
  */
 async function getAssignment(assignment_id, section) {
   if (section) {
@@ -50,58 +40,83 @@ async function getAssignment(assignment_id, section) {
   }
 }
 
-function sectionIDMatch (a, b){
-  return a.substring(0, 4) == b.substring(0, 4);;
-}
+/**
+ * Finds the section containing an assignment with the given ID across all sections.
+ * @param {string} assignment_id - ID of the assignment to find the section for.
+ * @returns {Promise<object>} The section containing the specified assignment.
+ */
+async function getCorrespondingSection (assignment_id){
+  const allSections = (await fetchApiJson(`users/${getUserId()}/sections`)).section;
 
+  for (const curSection of allSections){
+    // TODO: this is a really scuffed way to get all assignments that belong to a section, but it works
+    const curSectionAssignments = (await fetchApiJson(`sections/${curSection.id}/assignments/?start=0&limit=999`)).assignment;
+    if (!curSectionAssignments) continue;
+
+    for (const assignment of curSectionAssignments) {
+      if (assignment.id === assignment_id){
+        return curSection;
+      }
+    }
+  }
+} 
+
+/**
+ * Checks if a given assignment ID exists within a specified grading period.
+ * @param {object} grading_period - The grading period object to search within.
+ * @param {string} assignment_id - The ID of the assignment to look for.
+ * @returns {boolean} - True if the assignment exists in the grading period, otherwise false.
+ */
 function gradingPeriodContainsAssignment (grading_period, assignment_id){
   return grading_period.assignment.find((A) => A.assignment_id == assignment_id) !== undefined;
 }
+
+async function getGradingCategoryName (sectionID, gradingCategoryID){
+  const allSectionGrades = (await fetchApiJson(`users/${getUserId()}/grades`)).section;
+  const allRelevantGradingCategories = allSectionGrades.find((sec) => sec.section_id == sectionID).grading_category;
   
-async function displayAssignmentSignificance() {
-  const url = window.location.href;
-  const assignment_id = parseInt(url.match(/(\d+)/g)[0]);
+  return allRelevantGradingCategories.find((cat) => cat.id == gradingCategoryID).title;
+}
 
-  const curSection = (await getCorrespondingSection(assignment_id));
-  const curAssignment = (await getAssignment(assignment_id, curSection));
+function createStatsElement (props){
+  const wrapper = document.createElement("div");
+  wrapper.classList.add("splus-statistics-wrapper");
 
-  const curAssignmentPoints = parseInt(curAssignment.max_points);
-  const curAssignmentGradingCategory = curAssignment.grading_category;
+  const header = document.createElement("h3");
+  header.classList.add("h3-med-flat");
+  header.innerHTML = "Assignment Details";
+  wrapper.appendChild(header);
+
+  const content = document.createElement("div");
+  content.classList.add("splus-statistics");  
+
+  content.innerHTML += `<p>Points: ${props.points}</p>`;
+  content.innerHTML += `<p>Grading Category: ${props.gradingCategory}</p>`;
+
+  wrapper.appendChild(content);
+  return wrapper;
+}
+  
+// TODO: change var back to const
+async function displayAssignmentStatistics() {
+  url = window.location.href;
+  assignment_id = parseInt(url.match(/(\d+)/g)[0]);
+
+  curSection = (await getCorrespondingSection(assignment_id));
+  curAssignment = (await getAssignment(assignment_id, curSection));
+
+  assignmentStats = {
+    points: parseInt(curAssignment.max_points),
+    gradingCategory: await getGradingCategoryName(curSection.id, curAssignment.grading_category),
+  };
 
 
-  const allGrades = await fetchApiJson(`users/${getUserId()}/grades`);
-  const sectionGrades = allGrades.section.find((S) => sectionIDMatch(S.section_id, curSection.course_id));
-  const relevantGradingPeriod = sectionGrades.period.find((P) => gradingPeriodContainsAssignment(P, assignment_id));
-  const relevantGradingPeriodGrades = sectionGrades.final_grade.find((G) => G.period_id == relevantGradingPeriod.period_id);
-  const relevantGradingCategory = relevantGradingPeriodGrades.grading_category.find((C) => C.category_id == curAssignmentGradingCategory);
-  const relevantGradingCategoryName = sectionGrades.grading_category.find((C) => C.id == curAssignmentGradingCategory).title;
-
-  let curPoints = 0;
-  let curTotalPoints = 0;
-  for (const assignment of relevantGradingPeriod.assignment) {
-    if (assignment.grade !== null && assignment.max_points > 0 && assignment.category_id == curAssignmentGradingCategory) { 
-      curPoints += parseInt(assignment.grade);
-      curTotalPoints += parseInt(assignment.max_points);
-    }
-  }
-
-  const curPercent = (curPoints / curTotalPoints * 100).toPrecision(3);
-  const newPercent = ((curPoints + curAssignmentPoints) / (curTotalPoints + curAssignmentPoints) * 100).toPrecision(3);
-
-  const btnText = `${relevantGradingCategoryName}: ${curPercent}% → ${newPercent}%`;
-
-  // create button and wrapper to display significance
-  const container = createButton("significance-info-btn", btnText); 
-  const wrapper = createElement("div", ["splus-assignment-significance"]);
-  wrapper.appendChild(container);
-  document.querySelector(".info-container")?.appendChild(wrapper);
-  const button = document.querySelector("#significance-info-btn").parentElement;
-  const hue = Math.max(5 - (newPercent - curPercent), 0) / 5 * 120; 
-  button.setAttribute("style",  `border: 2px solid hsl(${hue}, 100%, 20%) !important; background-color: hsl(${hue}, 100%, 10%) !important;`)
+  const parentElement = document.querySelector("#right-column-inner div.right-block-big-wrapper")
+  parentElement?.appendChild(createStatsElement(assignmentStats));
 }
 
 (async () => {
-  await displayAssignmentSignificance();
+  await displayAssignmentStatistics();
 })();
 
 Logger.debug("Finished loading assignments.js");
